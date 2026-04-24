@@ -1,0 +1,1 @@
+-- Local seed data is intentionally empty. E2E tests create users through Supabase Auth.
