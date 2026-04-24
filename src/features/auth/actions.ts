@@ -9,7 +9,12 @@ function getAuthOrigin(headersList: Headers) {
   return headersList.get("origin") ?? "http://localhost:3000";
 }
 
-export async function signInWithMagicLink(formData: FormData) {
+type AuthActionState = {
+  ok: boolean;
+  message: string;
+};
+
+export async function signInWithMagicLink(_state: AuthActionState, formData: FormData) {
   const parsed = magicLinkSchema.safeParse({
     email: formData.get("email"),
   });
