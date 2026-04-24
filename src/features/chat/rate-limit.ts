@@ -4,14 +4,26 @@ import { getServerEnv } from "@/lib/env";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const chatRequestLimitPerMinute = 10;
+const fallbackRateLimitSalt = "friday-local-rate-limit-salt";
+
+export function getClientIp(headers: Headers) {
+  const forwardedFor = headers.get("x-forwarded-for");
+
+  if (forwardedFor) {
+    return forwardedFor.split(",")[0]?.trim() || "unknown";
+  }
+
+  return headers.get("x-real-ip") ?? "unknown";
+}
+
+export function hashIpAddress(ip: string, salt: string) {
+  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+}
 
 export function hashClientIp(request: NextRequest) {
-  const forwardedFor = request.headers.get("x-forwarded-for");
-  const realIp = request.headers.get("x-real-ip");
-  const ip = forwardedFor?.split(",")[0]?.trim() || realIp || "unknown";
-  const salt = getServerEnv().RATE_LIMIT_SALT ?? "friday-local-rate-limit-salt";
+  const salt = getServerEnv().RATE_LIMIT_SALT ?? fallbackRateLimitSalt;
 
-  return createHash("sha256").update(`${salt}:${ip}`).digest("hex");
+  return hashIpAddress(getClientIp(request.headers), salt);
 }
 
 export async function consumeChatRateLimit(userId: string, ipHash: string) {
