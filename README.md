@@ -10,7 +10,9 @@ Repository: <https://github.com/Mr-Guilherme/Friday>
 - Authenticated chat with streaming AI responses.
 - Multiple conversations with persisted context.
 - Bilingual interface for Portuguese and English with persisted preference.
-- Mobile-first responsive layout with a desktop conversation sidebar and mobile conversation drawer.
+- Dark-first, mobile-first responsive layout with a desktop conversation sidebar and mobile conversation drawer.
+- Smooth chat experience with AI Elements-style conversation, message, and prompt input components.
+- Conversation titles generated from the first message and shown in the sidebar.
 - Server-side English coach system prompt tuned for software engineering conversations.
 
 ## Stack
@@ -19,7 +21,7 @@ Repository: <https://github.com/Mr-Guilherme/Friday>
 - Next.js 16.2.4, React 19.2.5, TypeScript 6.0.3.
 - Supabase Auth, SSR helpers, local CLI, and Postgres with RLS.
 - Vercel AI SDK with OpenAI `gpt-4.1-mini`.
-- Tailwind CSS and shadcn-style components.
+- Tailwind CSS, shadcn-style components, and AI Elements-style chat primitives.
 - Zod 4.3.6 validation, Biome, Vitest, Playwright, Husky, and commitlint.
 
 ## Commands
@@ -63,5 +65,6 @@ Required values:
 - User-owned tables have RLS and explicit ownership checks in server code.
 - Chat and auth payloads are validated with Zod.
 - The system prompt and OpenAI key stay server-side.
+- Conversation title generation stays server-side and falls back to deterministic titles when AI is mocked or unavailable.
 - AI requests use a Postgres-backed rate limit before calling the model.
 - Security headers are configured in Next.js.

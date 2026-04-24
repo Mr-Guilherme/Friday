@@ -12,12 +12,15 @@
 - Use Biome as the primary linter and formatter.
 - Use Vitest for focused unit coverage and Playwright for mobile and desktop E2E coverage.
 - Use GitHub Actions for lint, tests, build, local Supabase, and E2E validation.
+- Keep the interface dark-first and compact unless a product decision changes that.
+- Keep chat UI primitives in `src/components/ai-elements` aligned with the AI Elements component shape.
 
 ## Architecture
 
 - `src/app` contains App Router pages and route handlers.
 - `src/features/auth` owns login actions and auth input validation.
 - `src/features/chat` owns chat schemas, server actions, persistence helpers, prompt assembly, rate limiting, and the chat UI shell.
+- `src/components/ai-elements` owns local AI Elements-style conversation, message, and prompt input primitives.
 - `src/features/profile` owns profile preference reads and writes.
 - `src/lib/supabase` owns browser, server, and proxy Supabase client creation.
 - `supabase/migrations` owns schema, RLS policies, triggers, and RPC functions.
