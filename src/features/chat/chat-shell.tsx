@@ -1,19 +1,34 @@
 "use client";
 
-import { LogOut, Menu, MessageSquarePlus, Send, X } from "lucide-react";
+import { LogOut, Menu, MessageSquarePlus, X } from "lucide-react";
 import { useMemo, useRef, useState } from "react";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationEmptyState,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import {
+  PromptInput,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/components/ai-elements/prompt-input";
 import { LocaleToggle } from "@/components/locale-toggle";
 import { Button } from "@/components/ui/button";
-import { Textarea } from "@/components/ui/textarea";
 import { signOut } from "@/features/auth/actions";
-import type { ChatMessage, Conversation, MessageGroup } from "@/features/chat/types";
+import type {
+  ChatMessage,
+  MessageGroup,
+  Conversation as SavedConversation,
+} from "@/features/chat/types";
 import { copy } from "@/features/i18n/copy";
 import type { Locale } from "@/features/i18n/types";
 import { cn } from "@/lib/utils";
 
 type ChatShellProps = {
   locale: Locale;
-  conversations: Conversation[];
+  conversations: SavedConversation[];
   messagesByConversation: MessageGroup;
 };
 
@@ -37,7 +52,7 @@ function createDraftMessage(input: {
   };
 }
 
-function getDraftConversation(conversationId: string): Conversation {
+function getDraftConversation(conversationId: string): SavedConversation {
   const now = new Date().toISOString();
 
   return {
@@ -183,11 +198,15 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
   }
 
   const sidebar = (
-    <aside className="flex h-full min-h-0 w-full flex-col border-slate-200 bg-white md:border-r">
-      <div className="flex h-16 items-center justify-between gap-3 border-b border-slate-200 px-4">
+    <aside className="flex h-full min-h-0 w-full flex-col border-slate-200 bg-white md:border-r dark:border-slate-800 dark:bg-slate-950">
+      <div className="flex h-14 items-center justify-between gap-3 border-b border-slate-200 px-3 dark:border-slate-800">
         <div>
-          <p className="text-sm font-semibold text-slate-950">{content.conversations}</p>
-          <p className="text-xs text-slate-500">{conversationList.length} saved</p>
+          <p className="text-sm font-medium text-slate-950 dark:text-slate-100">
+            {content.conversations}
+          </p>
+          <p className="text-xs text-slate-500 dark:text-slate-500">
+            {conversationList.length} saved
+          </p>
         </div>
         <Button type="button" variant="outline" size="sm" onClick={startNewConversation}>
           <MessageSquarePlus className="size-4" />
@@ -201,10 +220,10 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
             key={conversation.id}
             onClick={() => selectConversation(conversation.id)}
             className={cn(
-              "w-full rounded-md px-3 py-2 text-left text-sm transition",
+              "w-full rounded-lg px-3 py-2 text-left text-sm transition",
               conversation.id === selectedConversationId
-                ? "bg-emerald-50 text-emerald-950"
-                : "text-slate-700 hover:bg-slate-100",
+                ? "bg-emerald-50 text-emerald-950 dark:bg-emerald-400/10 dark:text-emerald-100"
+                : "text-slate-700 hover:bg-slate-100 dark:text-slate-400 dark:hover:bg-slate-900 dark:hover:text-slate-100",
             )}
           >
             <span className="line-clamp-2">{conversation.title}</span>
@@ -215,13 +234,13 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
   );
 
   return (
-    <main className="flex h-dvh overflow-hidden bg-slate-50 text-slate-950">
-      <div className="hidden w-80 shrink-0 md:block">{sidebar}</div>
+    <main className="flex h-dvh overflow-hidden bg-slate-50 text-slate-950 dark:bg-slate-950 dark:text-slate-100">
+      <div className="hidden w-72 shrink-0 md:block">{sidebar}</div>
 
       {sidebarOpen ? (
         <div className="fixed inset-0 z-40 bg-slate-950/45 md:hidden">
-          <div className="h-full w-[min(84vw,22rem)] bg-white shadow-xl">
-            <div className="flex justify-end border-b border-slate-200 p-2">
+          <div className="h-full w-[min(84vw,21rem)] bg-white shadow-xl dark:bg-slate-950">
+            <div className="flex justify-end border-b border-slate-200 p-2 dark:border-slate-800">
               <Button
                 type="button"
                 variant="ghost"
@@ -237,7 +256,7 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
       ) : null}
 
       <section className="flex min-w-0 flex-1 flex-col">
-        <header className="flex h-16 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 sm:px-5">
+        <header className="flex h-14 shrink-0 items-center justify-between gap-3 border-b border-slate-200 bg-white px-3 sm:px-4 dark:border-slate-800 dark:bg-slate-950">
           <div className="flex min-w-0 items-center gap-2">
             <Button
               type="button"
@@ -248,7 +267,7 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
             >
               <Menu className="size-5" />
             </Button>
-            <h1 className="truncate text-lg font-semibold">{content.title}</h1>
+            <h1 className="truncate text-base font-semibold">{content.title}</h1>
           </div>
           <div className="flex items-center gap-2">
             <LocaleToggle locale={locale} persist />
@@ -260,58 +279,53 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
           </div>
         </header>
 
-        <div className="min-h-0 flex-1 overflow-y-auto px-3 py-5 sm:px-6">
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-4">
+        <Conversation className="px-3 py-4 sm:px-5">
+          <ConversationContent className="mx-auto w-full max-w-3xl">
             {activeMessages.length === 0 ? (
-              <div className="mt-16 rounded-lg border border-dashed border-slate-300 bg-white p-6 text-center">
-                <h2 className="text-lg font-semibold">{content.emptyTitle}</h2>
-                <p className="mt-2 text-sm leading-6 text-slate-600">{content.emptyBody}</p>
-              </div>
+              <ConversationEmptyState title={content.emptyTitle} description={content.emptyBody} />
             ) : null}
 
             {activeMessages.map((message) => (
-              <div
-                key={message.id}
-                className={cn("flex", message.role === "user" ? "justify-end" : "justify-start")}
-              >
-                <div
-                  className={cn(
-                    "max-w-[88%] rounded-lg px-4 py-3 text-sm leading-6 shadow-sm sm:max-w-[74%]",
-                    message.role === "user"
-                      ? "bg-emerald-700 text-white"
-                      : "border border-slate-200 bg-white text-slate-800",
-                  )}
-                >
-                  {message.content || content.thinking}
-                </div>
-              </div>
+              <Message key={message.id} from={message.role}>
+                {message.role === "assistant" ? (
+                  <MessageResponse>{message.content || content.thinking}</MessageResponse>
+                ) : (
+                  <MessageContent>{message.content}</MessageContent>
+                )}
+              </Message>
             ))}
-          </div>
-        </div>
+          </ConversationContent>
+          <ConversationScrollButton />
+        </Conversation>
 
-        <form
-          onSubmit={submitMessage}
-          className="shrink-0 border-t border-slate-200 bg-white p-3 sm:p-5"
-        >
-          <div className="mx-auto flex w-full max-w-3xl flex-col gap-3 sm:flex-row">
-            <Textarea
+        <div className="shrink-0 border-t border-slate-200 bg-white p-3 dark:border-slate-800 dark:bg-slate-950 sm:p-4">
+          <PromptInput
+            onSubmit={submitMessage}
+            className="mx-auto flex w-full max-w-3xl items-end gap-2"
+          >
+            <PromptInputTextarea
               value={input}
               onChange={(event) => setInput(event.target.value)}
               placeholder={content.inputPlaceholder}
-              className="min-h-20 flex-1"
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
             />
-            <Button
-              type="submit"
-              className="h-11 sm:h-20 sm:w-24"
-              disabled={isSending}
+            <PromptInputSubmit
+              status={isSending ? "streaming" : "ready"}
+              disabled={!input.trim()}
               aria-label={content.send}
-            >
-              <Send className="size-4" />
-              <span className="sm:hidden">{content.send}</span>
-            </Button>
-          </div>
-          {error ? <p className="mx-auto mt-2 max-w-3xl text-sm text-rose-700">{error}</p> : null}
-        </form>
+            />
+          </PromptInput>
+          {error ? (
+            <p className="mx-auto mt-2 max-w-3xl text-sm text-rose-700 dark:text-rose-300">
+              {error}
+            </p>
+          ) : null}
+        </div>
       </section>
     </main>
   );
