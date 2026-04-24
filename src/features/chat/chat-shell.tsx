@@ -300,7 +300,12 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
               placeholder={content.inputPlaceholder}
               className="min-h-20 flex-1"
             />
-            <Button type="submit" className="h-11 sm:h-20 sm:w-24" disabled={isSending}>
+            <Button
+              type="submit"
+              className="h-11 sm:h-20 sm:w-24"
+              disabled={isSending}
+              aria-label={content.send}
+            >
               <Send className="size-4" />
               <span className="sm:hidden">{content.send}</span>
             </Button>

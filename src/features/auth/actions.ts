@@ -29,7 +29,7 @@ export async function signInWithMagicLink(_state: AuthActionState, formData: For
   const { error } = await supabase.auth.signInWithOtp({
     email: parsed.data.email,
     options: {
-      emailRedirectTo: `${origin}/auth/confirm?next=/`,
+      emailRedirectTo: `${origin}/auth/callback?next=/`,
       shouldCreateUser: true,
     },
   });
