@@ -52,13 +52,13 @@ function createDraftMessage(input: {
   };
 }
 
-function getDraftConversation(conversationId: string): SavedConversation {
+function getDraftConversation(conversationId: string, title: string): SavedConversation {
   const now = new Date().toISOString();
 
   return {
     id: conversationId,
     user_id: "local",
-    title: "New conversation",
+    title,
     created_at: now,
     updated_at: now,
   };
@@ -96,13 +96,17 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
     setError("");
   }
 
-  function upsertConversation(conversationId: string) {
+  function upsertConversation(conversationId: string, title: string) {
     setConversationList((current) => {
-      if (current.some((conversation) => conversation.id === conversationId)) {
-        return current;
+      const existing = current.find((conversation) => conversation.id === conversationId);
+
+      if (existing) {
+        return current.map((conversation) =>
+          conversation.id === conversationId ? { ...conversation, title } : conversation,
+        );
       }
 
-      return [getDraftConversation(conversationId), ...current];
+      return [getDraftConversation(conversationId, title), ...current];
     });
     setSelectedConversationId(conversationId);
   }
@@ -183,13 +187,14 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
       }
 
       const conversationId = response.headers.get("x-conversation-id") ?? activeConversationId;
+      const conversationTitle = response.headers.get("x-conversation-title") ?? message;
       const userMessage = createDraftMessage({ conversationId, role: "user", content: message });
       const assistantMessage = createDraftMessage({
         conversationId,
         role: "assistant",
         content: "",
       });
-      upsertConversation(conversationId);
+      upsertConversation(conversationId, conversationTitle);
       appendMessages(conversationId, userMessage, assistantMessage);
       await readAssistantStream(response, conversationId, assistantMessage.id);
     } finally {

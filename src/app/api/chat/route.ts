@@ -1,10 +1,12 @@
 import { createOpenAI } from "@ai-sdk/openai";
-import { streamText } from "ai";
+import { generateText, streamText } from "ai";
 import { type NextRequest, NextResponse } from "next/server";
 import { getOwnedConversation } from "@/features/chat/data";
 import {
   buildConversationTitle,
+  conversationTitleSystemPrompt,
   englishCoachSystemPrompt,
+  sanitizeConversationTitle,
   toModelMessages,
 } from "@/features/chat/prompt";
 import { consumeChatRateLimit, hashClientIp } from "@/features/chat/rate-limit";
@@ -29,19 +31,45 @@ async function createConversation(userId: string, title: string) {
   return data;
 }
 
-async function resolveConversation(
-  userId: string,
-  conversationId: string | undefined,
+async function generateConversationTitle(
   message: string,
+  apiKey: string | undefined,
+  mock: string | undefined,
 ) {
+  if (mock || !apiKey) {
+    return buildConversationTitle(message);
+  }
+
+  const openai = createOpenAI({ apiKey });
+  const { text } = await generateText({
+    model: openai("gpt-4.1-mini"),
+    system: conversationTitleSystemPrompt,
+    prompt: message,
+    maxOutputTokens: 24,
+    temperature: 0.2,
+  });
+
+  return sanitizeConversationTitle(text, message);
+}
+
+async function resolveConversation(input: {
+  userId: string;
+  conversationId: string | undefined;
+  message: string;
+  apiKey: string | undefined;
+  mock: string | undefined;
+}) {
+  const { userId, conversationId, message, apiKey, mock } = input;
+
   if (!conversationId) {
-    return createConversation(userId, buildConversationTitle(message));
+    const title = await generateConversationTitle(message, apiKey, mock);
+    return createConversation(userId, title);
   }
 
   return getOwnedConversation(conversationId, userId);
 }
 
-function createTextResponse(text: string, conversationId: string) {
+function createTextResponse(text: string, conversationId: string, title: string) {
   const stream = new ReadableStream({
     start(controller) {
       controller.enqueue(new TextEncoder().encode(text));
@@ -53,6 +81,7 @@ function createTextResponse(text: string, conversationId: string) {
     headers: {
       "content-type": "text/plain; charset=utf-8",
       "x-conversation-id": conversationId,
+      "x-conversation-title": title,
     },
   });
 }
@@ -79,11 +108,14 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Rate limit exceeded." }, { status: 429 });
   }
 
-  const conversation = await resolveConversation(
-    user.id,
-    parsed.data.conversationId,
-    parsed.data.message,
-  );
+  const env = getServerEnv();
+  const conversation = await resolveConversation({
+    userId: user.id,
+    conversationId: parsed.data.conversationId,
+    message: parsed.data.message,
+    apiKey: env.OPENAI_API_KEY,
+    mock: env.FRIDAY_MOCK_AI,
+  });
 
   if (!conversation) {
     return NextResponse.json({ error: "Conversation not found." }, { status: 404 });
@@ -104,8 +136,6 @@ export async function POST(request: NextRequest) {
     .order("created_at", { ascending: true })
     .limit(24);
 
-  const env = getServerEnv();
-
   if (env.FRIDAY_MOCK_AI) {
     const text = "Let's practice that. Say it again as if you were updating your engineering team.";
     await supabase.from("messages").insert({
@@ -118,7 +148,7 @@ export async function POST(request: NextRequest) {
       .from("conversations")
       .update({ updated_at: new Date().toISOString() })
       .eq("id", conversation.id);
-    return createTextResponse(text, conversation.id);
+    return createTextResponse(text, conversation.id, conversation.title);
   }
 
   if (!env.OPENAI_API_KEY) {
@@ -153,6 +183,7 @@ export async function POST(request: NextRequest) {
   return result.toTextStreamResponse({
     headers: {
       "x-conversation-id": conversation.id,
+      "x-conversation-title": conversation.title,
     },
   });
 }

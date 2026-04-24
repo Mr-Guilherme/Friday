@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import {
   buildConversationTitle,
   englishCoachSystemPrompt,
+  sanitizeConversationTitle,
   toModelMessages,
 } from "@/features/chat/prompt";
 import type { ChatMessage } from "@/features/chat/types";
@@ -41,7 +42,21 @@ describe("buildConversationTitle", () => {
       "Please simulate a very detailed engineering manager interview about incident response",
     );
 
-    expect(title).toHaveLength(48);
+    expect(title).toHaveLength(60);
     expect(title.endsWith("...")).toBe(true);
+  });
+});
+
+describe("sanitizeConversationTitle", () => {
+  it("removes wrappers from generated titles", () => {
+    expect(sanitizeConversationTitle(' "**Daily Update Practice**" ', "fallback")).toBe(
+      "Daily Update Practice",
+    );
+  });
+
+  it("uses the fallback message when the generated title is empty", () => {
+    expect(sanitizeConversationTitle("   ", "Practice a code review")).toBe(
+      "Practice a code review",
+    );
   });
 });
