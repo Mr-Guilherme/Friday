@@ -24,22 +24,24 @@ export function MagicLinkForm({ initialLocale }: MagicLinkFormProps) {
   const content = copy[locale].login;
 
   return (
-    <div className="w-full max-w-md">
+    <div className="w-full max-w-sm">
       <div className="mb-6 flex items-center justify-between gap-4">
-        <p className="text-sm font-semibold text-emerald-700">{content.eyebrow}</p>
+        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-300">
+          {content.eyebrow}
+        </p>
         <LocaleToggle locale={locale} onChange={setLocale} />
       </div>
 
       <div className="space-y-3">
-        <h1 className="text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl">
+        <h1 className="text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl dark:text-slate-50">
           {content.title}
         </h1>
-        <p className="text-base leading-7 text-slate-600">{content.subtitle}</p>
+        <p className="text-sm leading-6 text-slate-600 dark:text-slate-400">{content.subtitle}</p>
       </div>
 
-      <form action={formAction} className="mt-8 space-y-4">
+      <form action={formAction} className="mt-7 space-y-3">
         <div className="space-y-2">
-          <label htmlFor="email" className="text-sm font-medium text-slate-800">
+          <label htmlFor="email" className="text-sm font-medium text-slate-800 dark:text-slate-200">
             {content.emailLabel}
           </label>
           <Input
@@ -58,7 +60,7 @@ export function MagicLinkForm({ initialLocale }: MagicLinkFormProps) {
       </form>
 
       {state.message ? (
-        <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900">
+        <p className="mt-4 rounded-md bg-emerald-50 px-3 py-2 text-sm text-emerald-900 dark:bg-emerald-950/60 dark:text-emerald-100">
           {state.ok ? content.checkEmail : state.message}
         </p>
       ) : null}
