@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 
 const mailpitUrl = "http://127.0.0.1:54324";
 
@@ -43,9 +43,7 @@ async function getMagicLink(email: string) {
   throw new Error(`Magic link email was not delivered to ${email}`);
 }
 
-test("logs in with magic link and sends a chat message", async ({ page, isMobile }) => {
-  test.skip(isMobile, "Desktop covers the full magic-link flow.");
-
+async function loginWithMagicLink(page: Page) {
   const email = `friday-${Date.now()}@example.com`;
 
   await page.goto("/login");
@@ -57,15 +55,42 @@ test("logs in with magic link and sends a chat message", async ({ page, isMobile
 
   const magicLink = await getMagicLink(email);
   await page.goto(magicLink);
-
   await expect(page.getByRole("heading", { name: "Friday" })).toBeVisible();
-  await page
-    .getByPlaceholder(/Digite em inglês|Write in English/)
-    .fill("Help me practice a daily update.");
-  await page.getByRole("button", { name: /Enviar|Send/ }).click();
+}
 
-  await expect(page.getByText("Help me practice a daily update.")).toBeVisible();
-  await expect(page.getByText(/Let's practice that/)).toBeVisible();
+async function sendMessage(page: Page, message: string) {
+  const chatLog = page.getByRole("log");
+
+  await page.getByPlaceholder(/Digite em inglês|Write in English/).fill(message);
+  await page.getByRole("button", { name: /Enviar|Send/ }).click();
+  await expect(chatLog.getByText(message)).toBeVisible();
+  await expect(chatLog.getByText(/Let's practice that/)).toBeVisible();
+}
+
+test("logs in with magic link and switches between chat conversations", async ({
+  page,
+  isMobile,
+}) => {
+  test.skip(isMobile, "Desktop covers the full magic-link flow.");
+
+  const firstMessage = "Help me practice a daily update.";
+  const secondMessage = "Simulate a code review conversation.";
+
+  await loginWithMagicLink(page);
+  await sendMessage(page, firstMessage);
+  await expect(page.getByRole("button", { name: firstMessage })).toBeVisible();
+
+  await page.getByRole("button", { name: /Nova conversa|New conversation/ }).click();
+  await sendMessage(page, secondMessage);
+  await expect(page.getByRole("button", { name: secondMessage })).toBeVisible();
+
+  await page.getByRole("button", { name: firstMessage }).click();
+  await expect(page.getByRole("log").getByText(firstMessage)).toBeVisible();
+  await expect(page.getByRole("log").getByText(secondMessage)).not.toBeVisible();
+
+  await page.getByRole("button", { name: secondMessage }).click();
+  await expect(page.getByRole("log").getByText(secondMessage)).toBeVisible();
+  await expect(page.getByRole("log").getByText(firstMessage)).not.toBeVisible();
 });
 
 test("keeps the chat layout usable on mobile", async ({ page, isMobile }) => {
