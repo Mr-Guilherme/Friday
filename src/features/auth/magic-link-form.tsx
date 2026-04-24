@@ -25,12 +25,13 @@ export function MagicLinkForm({ initialLocale }: MagicLinkFormProps) {
 
   return (
     <div className="w-full max-w-sm">
-      <div className="mb-6 flex items-center justify-between gap-4">
-        <p className="text-xs font-semibold text-emerald-600 dark:text-emerald-300">
-          {content.eyebrow}
-        </p>
+      <div className="fixed right-5 top-4 z-10 sm:right-8 lg:right-12">
         <LocaleToggle locale={locale} onChange={setLocale} />
       </div>
+
+      <p className="mb-6 text-xs font-semibold text-emerald-600 dark:text-emerald-300">
+        {content.eyebrow}
+      </p>
 
       <div className="space-y-3">
         <h1 className="text-3xl font-semibold leading-tight text-slate-950 sm:text-4xl dark:text-slate-50">

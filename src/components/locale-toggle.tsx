@@ -14,22 +14,23 @@ export function LocaleToggle({ locale, persist = false, onChange }: LocaleToggle
   const locales: Locale[] = ["pt-BR", "en"];
 
   return (
-    <div className="inline-grid grid-cols-2 rounded-md border border-slate-200 bg-white p-1 shadow-sm">
+    <div className="inline-flex items-center gap-1">
       {locales.map((item) => {
         const active = item === locale;
+        const label = item === "pt-BR" ? "PT" : "EN";
+        const className = cn(
+          "h-7 min-w-8 rounded-none border-b px-1.5 text-xs font-medium tracking-wide transition",
+          active
+            ? "border-emerald-500 text-slate-950 dark:border-emerald-300 dark:text-slate-50"
+            : "border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-500 dark:hover:text-slate-200",
+        );
 
         if (persist) {
           return (
             <form action={updatePreferredLocale} key={item}>
               <input type="hidden" name="locale" value={item} />
-              <button
-                type="submit"
-                className={cn(
-                  "h-8 min-w-14 rounded px-3 text-sm font-medium transition",
-                  active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100",
-                )}
-              >
-                {item === "pt-BR" ? "PT" : "EN"}
+              <button type="submit" className={className} aria-pressed={active}>
+                {label}
               </button>
             </form>
           );
@@ -40,12 +41,10 @@ export function LocaleToggle({ locale, persist = false, onChange }: LocaleToggle
             type="button"
             key={item}
             onClick={() => onChange?.(item)}
-            className={cn(
-              "h-8 min-w-14 rounded px-3 text-sm font-medium transition",
-              active ? "bg-slate-950 text-white" : "text-slate-600 hover:bg-slate-100",
-            )}
+            className={className}
+            aria-pressed={active}
           >
-            {item === "pt-BR" ? "PT" : "EN"}
+            {label}
           </button>
         );
       })}
