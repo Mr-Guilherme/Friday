@@ -8,7 +8,12 @@ import {
   ConversationEmptyState,
   ConversationScrollButton,
 } from "@/components/ai-elements/conversation";
-import { Message, MessageContent, MessageResponse } from "@/components/ai-elements/message";
+import {
+  Message,
+  MessageContent,
+  MessageResponse,
+  ThinkingMessage,
+} from "@/components/ai-elements/message";
 import {
   PromptInput,
   PromptInputSubmit,
@@ -17,11 +22,15 @@ import {
 import { LocaleToggle } from "@/components/locale-toggle";
 import { Button } from "@/components/ui/button";
 import { signOut } from "@/features/auth/actions";
-import type {
-  ChatMessage,
-  MessageGroup,
-  Conversation as SavedConversation,
-} from "@/features/chat/types";
+import {
+  appendAssistantContent,
+  appendOptimisticMessages,
+  type OptimisticMessage,
+  type OptimisticMessageGroup,
+  reconcileConversationMessages,
+  removeOptimisticMessage,
+} from "@/features/chat/optimistic-messages";
+import type { MessageGroup, Conversation as SavedConversation } from "@/features/chat/types";
 import { copy } from "@/features/i18n/copy";
 import type { Locale } from "@/features/i18n/types";
 import { cn } from "@/lib/utils";
@@ -32,17 +41,11 @@ type ChatShellProps = {
   messagesByConversation: MessageGroup;
 };
 
-type DisplayMessage = Pick<
-  ChatMessage,
-  "id" | "conversation_id" | "role" | "content" | "created_at"
->;
-type DisplayMessageGroup = Record<string, DisplayMessage[]>;
-
 function createDraftMessage(input: {
   conversationId: string;
   role: "user" | "assistant";
   content: string;
-}): DisplayMessage {
+}): OptimisticMessage {
   return {
     id: crypto.randomUUID(),
     conversation_id: input.conversationId,
@@ -71,7 +74,8 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
     conversations[0]?.id,
   );
   const [conversationList, setConversationList] = useState(conversations);
-  const [messageGroups, setMessageGroups] = useState<DisplayMessageGroup>(messagesByConversation);
+  const [messageGroups, setMessageGroups] =
+    useState<OptimisticMessageGroup>(messagesByConversation);
   const [input, setInput] = useState("");
   const [error, setError] = useState("");
   const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -132,26 +136,30 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
       }
 
       const chunk = decoder.decode(value, { stream: true });
-      setMessageGroups((current) => ({
-        ...current,
-        [conversationId]: (current[conversationId] ?? []).map((message) =>
-          message.id === assistantId
-            ? { ...message, content: `${message.content}${chunk}` }
-            : message,
-        ),
-      }));
+      setMessageGroups((current) =>
+        appendAssistantContent({
+          groups: current,
+          conversationId,
+          assistantId,
+          chunk,
+        }),
+      );
     }
   }
 
   function appendMessages(
     conversationId: string,
-    userMessage: DisplayMessage,
-    assistantMessage: DisplayMessage,
+    userMessage: OptimisticMessage,
+    assistantMessage: OptimisticMessage,
   ) {
-    setMessageGroups((current) => ({
-      ...current,
-      [conversationId]: [...(current[conversationId] ?? []), userMessage, assistantMessage],
-    }));
+    setMessageGroups((current) =>
+      appendOptimisticMessages({
+        groups: current,
+        conversationId,
+        userMessage,
+        assistantMessage,
+      }),
+    );
   }
 
   async function submitMessage(event: React.FormEvent<HTMLFormElement>) {
@@ -165,6 +173,28 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
     setInput("");
     setError("");
     setIsSending(true);
+    const optimisticConversationId = activeConversationId;
+    const userMessage = createDraftMessage({
+      conversationId: optimisticConversationId,
+      role: "user",
+      content: message,
+    });
+    const assistantMessage = createDraftMessage({
+      conversationId: optimisticConversationId,
+      role: "assistant",
+      content: "",
+    });
+    appendMessages(optimisticConversationId, userMessage, assistantMessage);
+
+    function removeAssistantDraft() {
+      setMessageGroups((current) =>
+        removeOptimisticMessage({
+          groups: current,
+          conversationId: optimisticConversationId,
+          messageId: assistantMessage.id,
+        }),
+      );
+    }
 
     try {
       const response = await fetch("/api/chat", {
@@ -177,25 +207,27 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
       });
 
       if (response.status === 429) {
+        removeAssistantDraft();
         setError(content.rateLimited);
         return;
       }
 
       if (!response.ok) {
+        removeAssistantDraft();
         setError("Could not send this message.");
         return;
       }
 
       const conversationId = response.headers.get("x-conversation-id") ?? activeConversationId;
       const conversationTitle = response.headers.get("x-conversation-title") ?? message;
-      const userMessage = createDraftMessage({ conversationId, role: "user", content: message });
-      const assistantMessage = createDraftMessage({
-        conversationId,
-        role: "assistant",
-        content: "",
-      });
+      setMessageGroups((current) =>
+        reconcileConversationMessages({
+          groups: current,
+          fromConversationId: optimisticConversationId,
+          toConversationId: conversationId,
+        }),
+      );
       upsertConversation(conversationId, conversationTitle);
-      appendMessages(conversationId, userMessage, assistantMessage);
       await readAssistantStream(response, conversationId, assistantMessage.id);
     } finally {
       setIsSending(false);
@@ -293,7 +325,11 @@ export function ChatShell({ locale, conversations, messagesByConversation }: Cha
             {activeMessages.map((message) => (
               <Message key={message.id} from={message.role}>
                 {message.role === "assistant" ? (
-                  <MessageResponse>{message.content || content.thinking}</MessageResponse>
+                  message.content ? (
+                    <MessageResponse>{message.content}</MessageResponse>
+                  ) : (
+                    <ThinkingMessage label={content.thinking} />
+                  )
                 ) : (
                   <MessageContent>{message.content}</MessageContent>
                 )}

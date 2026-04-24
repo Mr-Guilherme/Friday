@@ -45,3 +45,26 @@ export type MessageResponseProps = HTMLAttributes<HTMLDivElement>;
 export function MessageResponse({ children, ...props }: MessageResponseProps) {
   return <MessageContent {...props}>{children}</MessageContent>;
 }
+
+export type ThinkingMessageProps = {
+  label: string;
+};
+
+export function ThinkingMessage({ label }: ThinkingMessageProps) {
+  return (
+    <MessageContent
+      aria-label={label}
+      aria-live="polite"
+      className="text-slate-500 dark:text-slate-400"
+    >
+      <span className="inline-flex items-center gap-1 motion-reduce:animate-none">
+        <span className="animate-pulse motion-reduce:animate-none">{label}</span>
+        <span className="flex gap-0.5" aria-hidden="true">
+          <span className="size-1 rounded-full bg-current opacity-40 [animation:thinking-dot_1.2s_ease-in-out_infinite]" />
+          <span className="size-1 rounded-full bg-current opacity-40 [animation:thinking-dot_1.2s_ease-in-out_infinite_150ms]" />
+          <span className="size-1 rounded-full bg-current opacity-40 [animation:thinking-dot_1.2s_ease-in-out_infinite_300ms]" />
+        </span>
+      </span>
+    </MessageContent>
+  );
+}

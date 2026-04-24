@@ -64,7 +64,9 @@ async function sendMessage(page: Page, message: string) {
   await page.getByPlaceholder(/Digite em inglês|Write in English/).fill(message);
   await page.getByRole("button", { name: /Enviar|Send/ }).click();
   await expect(chatLog.getByText(message)).toBeVisible();
+  await expect(chatLog.getByText(/Friday está pensando|Friday is thinking/)).toBeVisible();
   await expect(chatLog.getByText(/Let's practice that/)).toBeVisible();
+  await expect(chatLog.getByText(/Friday está pensando|Friday is thinking/)).not.toBeVisible();
 }
 
 test("logs in with magic link and switches between chat conversations", async ({
@@ -77,6 +79,11 @@ test("logs in with magic link and switches between chat conversations", async ({
   const secondMessage = "Simulate a code review conversation.";
 
   await loginWithMagicLink(page);
+  await page.route("**/api/chat", async (route) => {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+    await route.continue();
+  });
+
   await sendMessage(page, firstMessage);
   await expect(page.getByRole("button", { name: firstMessage })).toBeVisible();
 
